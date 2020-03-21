@@ -1,14 +1,14 @@
 import numpy as np
 import scipy
-from sklearn.random_projection import GaussianRandomProjection
+import sklearn.random_projection
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from numpy import linalg as LA
 import matplotlib.cm as cm
 import time
 import pandas as pd
 import warnings
 from sklearn import decomposition
-from sklearn.decomposition import FastICA
 from sklearn.metrics import silhouette_samples,silhouette_score,adjusted_mutual_info_score
 from sklearn.metrics import mean_squared_error
 from sklearn.cluster import KMeans
@@ -16,8 +16,6 @@ import itertools
 from scipy import linalg
 import matplotlib as mpl
 from sklearn import mixture
-
-
 
 df = pd.read_csv('digits_training.tra', sep=",", skiprows=0)
 
@@ -29,9 +27,10 @@ X=dat
 y=tar1
 y1=y[0:5618:4]
 y1.astype(int)
+#  pca visualization in 2d
 
-rp = GaussianRandomProjection(n_components=2)
-X1 = rp.fit_transform(X)
+pca1=decomposition.PCA(n_components=2,random_state=77)
+X1=pca1.fit_transform(X)
 plt.figure()
 for i in range(len(y1)):
     if y1[i] == 0:
@@ -47,65 +46,64 @@ for i in range(len(y1)):
     elif y1[i] == 5:
         plt.scatter(X1[i, 0], X1[i, 1], color='y')
     elif y1[i] == 6:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[1, .8, .2])
+        plt.scatter(X1[i, 0], X1[i, 1], color=[1,.8,.2])
     elif y1[i] == 7:
         plt.scatter(X1[i, 0], X1[i, 1], color='m')
     elif y1[i] == 8:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[.2, .5, 1])
+        plt.scatter(X1[i, 0], X1[i, 1], color=[.2,.5,1])
     elif y1[i] == 9:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[.4, .1, .1])
+        plt.scatter(X1[i, 0], X1[i, 1], color=[.4,.1,.1])
 
-colors = ['r', 'b', 'g', 'k', 'c', 'y', [1, .8, .2], 'm', [.2, .5, 1], [.4, .1, .1]]
+colors = ['r','b','g','k','c','y',[1,.8,.2],'m',[.2,.5,1],[.4,.1,.1]]
 lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='--') for c in colors]
-labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-plt.legend(lines, labels)
-plt.title('visualization of data in 2D (rp)-> digits dataset')
+labels = ['0','1','2','3','4','5','6','7','8','9']
+plt.legend(lines,labels)
+plt.title('visualization of data in 2D (pca)-> digits dataset')
 plt.show()
 
-r=np.array([7,17,37,57,77])
+#pca
+e1=np.empty([1,7])
+r1=[]
+x1=[]
+for i in range(4,65,10):
+    pca=decomposition.PCA(n_components=i,random_state=77)
+    pca.fit(X)
+    X1=pca.transform(X)
+    if i==64:
+        e1=(pca.explained_variance_ratio_)
+    X2=pca.inverse_transform(X1)
+    rmse = np.sqrt(mean_squared_error(X, X2))
+    x1.append(i)
+    r1.append(rmse)
+
+r1=np.array(r1)
+x1=np.array(x1)
+print(e1.shape)
+e1=e1[3:64:10]
+print(e1.shape)
+print(r1)
 plt.figure()
-for m in range(5):
 
-    x1=[]
-    # e1=[]
-    r1=[]
-    for i in range(4,64,10):
-        rp1 = GaussianRandomProjection(n_components=i,random_state=r[m])
-        rp1.fit(X)
-        X1 = rp1.transform(X)
-        print(X1.shape,rp1.components_.shape)
-        X2 = np.dot(X1,(rp1.components_))
-        rmse = np.sqrt(mean_squared_error(X, X2))
-        x1.append(i)
-        r1.append(rmse)
+plt.subplot(2,1,1)
+plt.plot(x1,e1)
+plt.xlabel('number of components')
+plt.ylabel('variance')
+plt.title('distribution of eigenvalues of digits dataset')
 
-    r1 = np.array(r1)
-    x1 = np.array(x1)
-
-    print(r1)
-
-
-    if m==1:
-        plt.plot(x1, r1,color='r',label=1)
-    if m==2:
-        plt.plot(x1, r1,color='g',label=2)
-    if m==3:
-        plt.plot(x1, r1,color='b',label=3)
-    if m==4:
-        plt.plot(x1, r1,color='y',label=4)
-    if m==0:
-        plt.plot(x1, r1,color='c',label=0)
-
+plt.subplot(2,1,2)
+plt.plot(x1,r1)
 plt.xlabel('number of components')
 plt.ylabel('error')
-plt.title('reconstruction error of digits dataset with different random seeds in rp')
-plt.legend()
+plt.title('reconstruction error of digits dataset')
+plt.subplots_adjust(hspace=0.54)
 plt.show()
 
-#########
-rp=GaussianRandomProjection(n_components=15,random_state=77)
-X12=rp.fit_transform(X)
 
+
+### kmeans clustering on 12 input features
+pca = decomposition.PCA(n_components=12, random_state=77)
+pca.fit(X)
+X12 = pca.transform(X)
 
 sse = {}
 # elbow method
@@ -197,8 +195,8 @@ plt.show()
 
 lowest_bic = np.infty
 bic = []
-n_components_range = range(2,15,2)
-cv_types = [ 'full','diag','spherical']
+n_components_range = range(2,18,4)
+cv_types = ['spherical', 'tied', 'full']
 for cv_type in cv_types:
     for n_components in n_components_range:
         # Fit a Gaussian mixture with EM
@@ -207,8 +205,8 @@ for cv_type in cv_types:
         gmm.fit(X12)
         gmm_labels = gmm.predict(X12)
         bic.append(gmm.bic(X12))
-        if (bic[-1]) < lowest_bic:
-            lowest_bic = (bic[-1])
+        if abs(bic[-1]) < lowest_bic:
+            lowest_bic = abs(bic[-1])
             best_gmm = gmm
 
 bic = np.array(bic)
@@ -240,7 +238,6 @@ splot = plt.subplot(2, 1, 2)
 Y_ = clf.predict(X12)
 for i, (mean, cov, color) in enumerate(zip(clf.means_, clf.covariances_,
                                            color_iter)):
-    print(cov.shape)
     v, w = linalg.eigh(cov)
     if not np.any(Y_ == i):
         continue
@@ -263,7 +260,7 @@ plt.show()
 
 
 
-range_n_clusters = [2,10,12,14]
+range_n_clusters = [2,10,12,18]
 
 for n_clusters in range_n_clusters:
     # Create a subplot with 1 row and 2 columns

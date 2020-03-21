@@ -1,14 +1,16 @@
 import numpy as np
 import scipy
-from sklearn.random_projection import GaussianRandomProjection
+import sklearn.random_projection
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from numpy import linalg as LA
 import matplotlib.cm as cm
 import time
 import pandas as pd
 import warnings
 from sklearn import decomposition
-from sklearn.decomposition import FastICA
+from sklearn.decomposition import FastICA,TruncatedSVD,FactorAnalysis
+from sklearn.feature_selection import SelectKBest,chi2
 from sklearn.metrics import silhouette_samples,silhouette_score,adjusted_mutual_info_score
 from sklearn.metrics import mean_squared_error
 from sklearn.cluster import KMeans
@@ -18,111 +20,82 @@ import matplotlib as mpl
 from sklearn import mixture
 
 
-
-df = pd.read_csv('digits_training.tra', sep=",", skiprows=0)
+df = pd.read_csv('tic-tac-toe1.data', sep=",", skiprows=0)
 
 df=np.array(df)
 print(df.shape,df.dtype)
-dat=df[:,0:64]
-tar1=df[:,64]
+dat=df[:,0:9]
+tar1=df[:,9]
 X=dat
 y=tar1
-y1=y[0:5618:4]
-y1.astype(int)
 
-rp = GaussianRandomProjection(n_components=2)
-X1 = rp.fit_transform(X)
+sk=SelectKBest(chi2,k=2)
+X1=sk.fit_transform(X,y)
 plt.figure()
-for i in range(len(y1)):
-    if y1[i] == 0:
+for i in range(len(y)):
+    if y[i] == 0:
         plt.scatter(X1[i, 0], X1[i, 1], color='r')
-    elif y1[i] == 1:
+    elif y[i] == 1:
         plt.scatter(X1[i, 0], X1[i, 1], color='b')
-    elif y1[i] == 2:
-        plt.scatter(X1[i, 0], X1[i, 1], color='g')
-    elif y1[i] == 3:
-        plt.scatter(X1[i, 0], X1[i, 1], color='k')
-    elif y1[i] == 4:
-        plt.scatter(X1[i, 0], X1[i, 1], color='c')
-    elif y1[i] == 5:
-        plt.scatter(X1[i, 0], X1[i, 1], color='y')
-    elif y1[i] == 6:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[1, .8, .2])
-    elif y1[i] == 7:
-        plt.scatter(X1[i, 0], X1[i, 1], color='m')
-    elif y1[i] == 8:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[.2, .5, 1])
-    elif y1[i] == 9:
-        plt.scatter(X1[i, 0], X1[i, 1], color=[.4, .1, .1])
-
-colors = ['r', 'b', 'g', 'k', 'c', 'y', [1, .8, .2], 'm', [.2, .5, 1], [.4, .1, .1]]
-lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='--') for c in colors]
-labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-plt.legend(lines, labels)
-plt.title('visualization of data in 2D (rp)-> digits dataset')
+plt.title('visualization of data in 2D (  )-> tic-tac toe dataset')
 plt.show()
+#####################
 
-r=np.array([7,17,37,57,77])
+r1=[]
+x1=[]
+e1=[]
+for i in range(1,10,2):
+    sk = SelectKBest(chi2, k=i)
+    X1 = sk.fit_transform(X, y)
+    e1.append(np.mean(chi2(X1,y)))
+    X2=sk.inverse_transform(X1)
+    rmse = np.sqrt(mean_squared_error(X, X2))
+    x1.append(i)
+    r1.append(rmse)
+
+r1=np.array(r1)
+x1=np.array(x1)
+e1=np.array(e1)
+print(e1)
+print(r1)
 plt.figure()
-for m in range(5):
 
-    x1=[]
-    # e1=[]
-    r1=[]
-    for i in range(4,64,10):
-        rp1 = GaussianRandomProjection(n_components=i,random_state=r[m])
-        rp1.fit(X)
-        X1 = rp1.transform(X)
-        print(X1.shape,rp1.components_.shape)
-        X2 = np.dot(X1,(rp1.components_))
-        rmse = np.sqrt(mean_squared_error(X, X2))
-        x1.append(i)
-        r1.append(rmse)
+plt.subplot(2,1,1)
+plt.plot(x1,e1)
+plt.xlabel('number of components')
+plt.ylabel('chi squared score')
+plt.title('chi squared analysis of tic tac toe dataset')
 
-    r1 = np.array(r1)
-    x1 = np.array(x1)
-
-    print(r1)
-
-
-    if m==1:
-        plt.plot(x1, r1,color='r',label=1)
-    if m==2:
-        plt.plot(x1, r1,color='g',label=2)
-    if m==3:
-        plt.plot(x1, r1,color='b',label=3)
-    if m==4:
-        plt.plot(x1, r1,color='y',label=4)
-    if m==0:
-        plt.plot(x1, r1,color='c',label=0)
-
+plt.subplot(2,1,2)
+plt.plot(x1,r1)
 plt.xlabel('number of components')
 plt.ylabel('error')
-plt.title('reconstruction error of digits dataset with different random seeds in rp')
-plt.legend()
+plt.title('reconstruction error of tic tac toe dataset(Best_K_select)')
+plt.subplots_adjust(hspace=0.54)
 plt.show()
 
-#########
-rp=GaussianRandomProjection(n_components=15,random_state=77)
-X12=rp.fit_transform(X)
+### kmeans clustering on 7 input features
+sk = SelectKBest(chi2, k=7)
+X12 = sk.fit_transform(X, y)
 
 
+##################
 sse = {}
 # elbow method
-for k in range(2, 28,4):
+for k in range(2, 20, 4):
     kmeans = KMeans(n_clusters=k, max_iter=500).fit(X12)
     # print(kmeans.labels_)
-    sse[k] = kmeans.inertia_ # Inertia: Sum of distances of samples to their closest cluster center
+    sse[k] = kmeans.inertia_  # Inertia: Sum of distances of samples to their closest cluster center
 
 plt.figure()
 plt.plot(list(sse.keys()), list(sse.values()))
 plt.xlabel("Number of cluster")
 plt.ylabel("SSE")
-plt.title("digits dataset clustering")
+plt.title("tic tac toe dataset clustering")
 plt.show()
 
-#silhouette analysis, checking for lining up of clusters with actual labels(mutual_info_score)
-range_n_clusters = [2,10,12]
+# silhouette analysis, checking for lining up of clusters with actual labels(mutual_info_score)
+range_n_clusters = [2, 6,10,12]
 
 for n_clusters in range_n_clusters:
     # Create a subplot with 1 row and 2 columns
@@ -139,7 +112,7 @@ for n_clusters in range_n_clusters:
 
     # Initialize the clusterer with n_clusters value and a random generator
     # seed of 10 for reproducibility.
-    clusterer = KMeans(n_clusters=n_clusters, random_state=777)
+    clusterer = KMeans(n_clusters=n_clusters, random_state=10)
     cluster_labels = clusterer.fit_predict(X12)
 
     # The silhouette_score gives the average value for all the samples.
@@ -148,7 +121,7 @@ for n_clusters in range_n_clusters:
     silhouette_avg = silhouette_score(X12, cluster_labels)
     print("For n_clusters =", n_clusters,
           "The average silhouette_score is :", silhouette_avg)
-    print(n_clusters,adjusted_mutual_info_score(y, clusterer.labels_))
+    print(n_clusters, adjusted_mutual_info_score(y, clusterer.labels_))
     # Compute the silhouette scores for each sample
     sample_silhouette_values = silhouette_samples(X12, cluster_labels)
 
@@ -185,9 +158,7 @@ for n_clusters in range_n_clusters:
     ax1.set_yticks([])  # Clear the yaxis labels / ticks
     ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
 
-
-
-    plt.suptitle(("Silhouette analysis for KMeans clustering on digits dataset "
+    plt.suptitle(("Silhouette analysis for KMeans clustering on tic tac toe dataset "
                   "with n_clusters = %d" % n_clusters),
                  fontsize=14, fontweight='bold')
 
@@ -198,7 +169,7 @@ plt.show()
 lowest_bic = np.infty
 bic = []
 n_components_range = range(2,15,2)
-cv_types = [ 'full','diag','spherical']
+cv_types = ['spherical', 'tied', 'full']
 for cv_type in cv_types:
     for n_components in n_components_range:
         # Fit a Gaussian mixture with EM
@@ -240,7 +211,6 @@ splot = plt.subplot(2, 1, 2)
 Y_ = clf.predict(X12)
 for i, (mean, cov, color) in enumerate(zip(clf.means_, clf.covariances_,
                                            color_iter)):
-    print(cov.shape)
     v, w = linalg.eigh(cov)
     if not np.any(Y_ == i):
         continue
@@ -331,7 +301,7 @@ for n_clusters in range_n_clusters:
 
 
 
-    plt.suptitle(("Silhouette analysis for EM on digits dataset "
+    plt.suptitle(("Silhouette analysis for EM on tic tac toe dataset "
                   "with n_components = %d" % n_clusters),
                  fontsize=14, fontweight='bold')
 

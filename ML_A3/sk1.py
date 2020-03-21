@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 import sklearn.random_projection
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
 from numpy import linalg as LA
 import matplotlib.cm as cm
@@ -10,6 +9,8 @@ import time
 import pandas as pd
 import warnings
 from sklearn import decomposition
+from sklearn.decomposition import FastICA,TruncatedSVD
+from sklearn.feature_selection import SelectKBest,chi2
 from sklearn.metrics import silhouette_samples,silhouette_score,adjusted_mutual_info_score
 from sklearn.metrics import mean_squared_error
 from sklearn.cluster import KMeans
@@ -17,6 +18,7 @@ import itertools
 from scipy import linalg
 import matplotlib as mpl
 from sklearn import mixture
+
 
 df = pd.read_csv('digits_training.tra', sep=",", skiprows=0)
 
@@ -28,10 +30,9 @@ X=dat
 y=tar1
 y1=y[0:5618:4]
 y1.astype(int)
-#  pca visualization in 2d
 
-pca1=decomposition.PCA(n_components=2,random_state=77)
-X1=pca1.fit_transform(X)
+sk=SelectKBest(chi2,k=2)
+X1=sk.fit_transform(X,y)
 plt.figure()
 for i in range(len(y1)):
     if y1[i] == 0:
@@ -59,53 +60,49 @@ colors = ['r','b','g','k','c','y',[1,.8,.2],'m',[.2,.5,1],[.4,.1,.1]]
 lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='--') for c in colors]
 labels = ['0','1','2','3','4','5','6','7','8','9']
 plt.legend(lines,labels)
-plt.title('visualization of data in 2D (pca)-> digits dataset')
+plt.title('visualization of data in 2D ()-> digits dataset')
 plt.show()
+#######################
 
-#pca
-e1=np.empty([1,7])
 r1=[]
 x1=[]
+e1=[]
 for i in range(4,65,10):
-    pca=decomposition.PCA(n_components=i,random_state=77)
-    pca.fit(X)
-    X1=pca.transform(X)
-    if i==64:
-        e1=(pca.explained_variance_ratio_)
-    X2=pca.inverse_transform(X1)
+    sk = SelectKBest(chi2, k=i)
+    X1 = sk.fit_transform(X, y)
+    e1.append(np.mean(chi2(X1,y)))
+    X2=sk.inverse_transform(X1)
     rmse = np.sqrt(mean_squared_error(X, X2))
     x1.append(i)
     r1.append(rmse)
 
 r1=np.array(r1)
 x1=np.array(x1)
-print(e1.shape)
-e1=e1[3:64:10]
-print(e1.shape)
+e1=np.array(e1)
+print(e1)
 print(r1)
 plt.figure()
 
 plt.subplot(2,1,1)
 plt.plot(x1,e1)
 plt.xlabel('number of components')
-plt.ylabel('variance')
-plt.title('distribution of eigenvalues of digits dataset')
+plt.ylabel('chi squared score')
+plt.title('chi squared analysis of digits dataset')
 
 plt.subplot(2,1,2)
 plt.plot(x1,r1)
 plt.xlabel('number of components')
 plt.ylabel('error')
-plt.title('reconstruction error of digits dataset')
+plt.title('reconstruction error of digits dataset(Best_K_select)')
 plt.subplots_adjust(hspace=0.54)
 plt.show()
 
+### kmeans clustering on 15 input features
+sk = SelectKBest(chi2, k=15)
+X12 = sk.fit_transform(X, y)
 
 
-### kmeans clustering on 12 input features
-pca = decomposition.PCA(n_components=12, random_state=77)
-pca.fit(X)
-X12 = pca.transform(X)
-
+################
 sse = {}
 # elbow method
 for k in range(2, 28,4):
@@ -196,7 +193,7 @@ plt.show()
 
 lowest_bic = np.infty
 bic = []
-n_components_range = range(2,18,4)
+n_components_range = range(2,15,2)
 cv_types = ['spherical', 'tied', 'full']
 for cv_type in cv_types:
     for n_components in n_components_range:
@@ -261,7 +258,7 @@ plt.show()
 
 
 
-range_n_clusters = [2,10,12,18]
+range_n_clusters = [2,10,12,14]
 
 for n_clusters in range_n_clusters:
     # Create a subplot with 1 row and 2 columns

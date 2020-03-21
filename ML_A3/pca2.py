@@ -1,8 +1,6 @@
 import numpy as np
-import scipy
 import sklearn.random_projection
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
 from numpy import linalg as LA
 import matplotlib.cm as cm
@@ -77,14 +75,12 @@ plt.title('reconstruction error of tic tac toe dataset')
 plt.subplots_adjust(hspace=0.54)
 plt.show()
 
-#################################
-
-
 ### kmeans clustering on 6 input features
 pca = decomposition.PCA(n_components=6, random_state=77)
 pca.fit(X)
 X12 = pca.transform(X)
 
+#############
 sse = {}
 # elbow method
 for k in range(2, 20, 4):
